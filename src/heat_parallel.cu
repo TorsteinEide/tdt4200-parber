@@ -86,7 +86,6 @@ main ( int argc, char **argv )
     for ( int_t iteration = 0; iteration <= max_iteration; iteration++ )
     {
         // TODO 6: Launch the time_step-kernel.
-
         time_step<<<numBlocks, threadsPerBlock>>>(d_temp, d_temp_next, d_thermal_deffusivity, dt);
 
         // boundary_condition();
@@ -103,11 +102,13 @@ main ( int argc, char **argv )
             );
 
             // TODO 8: Copy data from device to host.
+            cudaMemcpy(h_temp[0], d_temp, size, cudaMemcpyDeviceToHost)
             domain_save ( iteration );
         }
 
-        swap( &h_temp[0], &h_temp[1] );
+        // swap( &h_temp[0], &h_temp[1] );
         // TODO 7: Swap device pointers.
+        swap( &d_temp, &d_temp_next );
     }
 
     gettimeofday ( &t_end, NULL );
@@ -230,4 +231,7 @@ domain_finalize ( void )
     free ( h_thermal_diffusivity );
 
     // TODO 9: Free device memory.
+    cudaFree(d_temp)
+    cudaFree(d_temp_next)
+    cudaFree(d_thermal_deffusivity)
 }
