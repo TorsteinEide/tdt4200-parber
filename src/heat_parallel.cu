@@ -21,21 +21,21 @@ int_t
     snapshot_frequency;
 
 real_t
-    size_t size = (M+2 * N+2) * sizeof(real_t)
+    
     *h_temp[2] = { NULL, NULL },
     *h_thermal_diffusivity,
     // TODO 1: Declare device side pointers to store host-side data.
     *d_temp,
     *d_temp_next,   
-    *d_thermal_deffusivity
+    *d_thermal_deffusivity,
     dt;
-
+size_t size = (M+2 * N+2) * sizeof(real_t);
 #define T(x,y)                      h_temp[0][(y) * (N + 2) + (x)]
 #define T_next(x,y)                 h_temp[1][((y) * (N + 2) + (x))]
 #define THERMAL_DIFFUSIVITY(x,y)    h_thermal_diffusivity[(y) * (N + 2) + (x)]
 #define T_device(x,y)                      d_temp[(y) * (N + 2) + (x)]
 #define T_device_next(x,y)                 d_temp_next[((y) * (N + 2) + (x))]
-#define DEVICE_THERMAL_DIFFUSIVITY(x,y)    d_thermal_diffusivity[(y) * (N + 2) + (x)]
+#define DEVICE_THERMAL_DIFFUSIVITY(x,y)    d_thermal_deffusivity[(y) * (N + 2) + (x)]
 
 #define cudaErrorCheck(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
@@ -46,7 +46,7 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
     }
 }
 
-__global__ void time_step (real_t* d_temp, real_t* d_temp_next, real_t* d_thermal_deffusivity, real_t dt)
+__global__ void time_step (real_t* d_temp, real_t* d_temp_next, real_t* d_thermal_deffusivity, real_t dt);
 void boundary_condition( void );
 void domain_init ( void );
 void domain_save ( int_t iteration );
@@ -83,10 +83,19 @@ main ( int argc, char **argv )
     struct timeval t_start, t_end;
     gettimeofday ( &t_start, NULL );
 
+    cudaDeviceProp prop;
+    int maxBlocksPerGrid;
+    int maxThreadsPerBlock;
+    cudaGetDeviceProperties(&prop, 0);
+    maxThreadsPerBlock = prop.maxThreadsPerBlock;
+    maxBlocksPerGrid = prop.maxGridSize[0];
+
     for ( int_t iteration = 0; iteration <= max_iteration; iteration++ )
     {
         // TODO 6: Launch the time_step-kernel.
-        time_step<<<numBlocks, threadsPerBlock>>>(d_temp, d_temp_next, d_thermal_deffusivity, dt);
+	int threadsPerBlock = maxThreadsPerBlock;
+	int blocksPerGrid = (N + threadsPerBlock -1 ) / threadsPerBlock;
+        time_step<<<blocksPerGrid, threadsPerBlock>>>(d_temp, d_temp_next, d_thermal_deffusivity, dt);
 
         // boundary_condition();
 
@@ -102,7 +111,7 @@ main ( int argc, char **argv )
             );
 
             // TODO 8: Copy data from device to host.
-            cudaMemcpy(h_temp[0], d_temp, size, cudaMemcpyDeviceToHost)
+            cudaMemcpy(h_temp[0], d_temp, size, cudaMemcpyDeviceToHost);
             domain_save ( iteration );
         }
 
@@ -134,7 +143,7 @@ time_step (real_t* d_temp, real_t* d_temp_next, real_t* d_thermal_deffusivity, r
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
 
-    boundary_condition(M, N, x, y)
+    boundary_condition(x, y);
 
     c = T_device(x, y);
 
@@ -157,7 +166,7 @@ time_step (real_t* d_temp, real_t* d_temp_next, real_t* d_thermal_deffusivity, r
 //         Chose appropriate threads to set the boundary values.
 __device__
 void
-boundary_condition (int_t M,  int_t N, int x, int y)
+boundary_condition (int x, int y)
 {
     
     T_device(x, 0) = T(x, 2);
@@ -176,9 +185,9 @@ domain_init ( void )
     h_thermal_diffusivity = (real_t*) malloc ( (M+2)*(N+2) * sizeof(real_t) );
 
     // TODO 2: Allocate device memory.
-    cudaMalloc(*d_temp, size)
-    cudaMalloc(*d_temp_next, size)
-    cudaMalloc(*d_thermal_deffusivity, size)
+    cudaMalloc(&d_temp, size);
+    cudaMalloc(&d_temp_next, size);
+    cudaMalloc(&d_thermal_deffusivity, size);
 
     dt = 0.1;
 
@@ -196,9 +205,9 @@ domain_init ( void )
     }
 
     // TODO 3: Copy data from host to device.
-    cudaMemcpy(d_temp, h_temp[0], size, cudaMemcpyHostToDevice)
-    cudaMemcpy(d_temp_next, h_temp[1], size, cudaMemcpyHostToDevice)
-    cudaMemcpy(d_thermal_deffusivity, h_thermal_diffusivity, size, cudaMemcpyHostToDevice)
+    cudaMemcpy(d_temp, h_temp[0], size, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_temp_next, h_temp[1], size, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_thermal_deffusivity, h_thermal_diffusivity, size, cudaMemcpyHostToDevice);
 }
 
 
@@ -231,7 +240,7 @@ domain_finalize ( void )
     free ( h_thermal_diffusivity );
 
     // TODO 9: Free device memory.
-    cudaFree(d_temp)
-    cudaFree(d_temp_next)
-    cudaFree(d_thermal_deffusivity)
+    cudaFree(d_temp);
+    cudaFree(d_temp_next);
+    cudaFree(d_thermal_deffusivity);
 }
