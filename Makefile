@@ -9,9 +9,9 @@ PLOTS:=$(PLOTSDIR)*.png
 VIDEO:=$(VIDEODIR)*.mp4
 
 CC:=gcc
-PARALLEL_CC:=nvcc
+# PARALLEL_CC:=nvcc
 #Comment the line above and uncomment the line below if you are running on Oppdal or Selbu
-#PARALLEL_CC:=/usr/local/cuda-12.2/bin/nvcc
+PARALLEL_CC:=/usr/local/cuda-12.2/bin/nvcc
 CFLAGS+=
 LDLIBS+=-lm
 
