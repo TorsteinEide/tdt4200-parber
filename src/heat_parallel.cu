@@ -46,8 +46,8 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
     }
 }
 
-__global__ void time_step (real_t* d_temp, real_t* d_temp_next, real_t* d_thermal_deffusivity, real_t dt);
-void boundary_condition( void );
+__global__ void time_step (real_t* d_temp, real_t* d_temp_next, real_t* d_thermal_deffusivity, real_t dt, int_t M, int_t N);
+__device__ void boundary_condition(real_t* d_temp, real_t* d_temp_next, int x, int y, int_t M, int_t N);
 void domain_init ( void );
 void domain_save ( int_t iteration );
 void domain_finalize ( void );
@@ -95,7 +95,7 @@ main ( int argc, char **argv )
         // TODO 6: Launch the time_step-kernel.
 	int threadsPerBlock = maxThreadsPerBlock;
 	int blocksPerGrid = (N + threadsPerBlock -1 ) / threadsPerBlock;
-        time_step<<<blocksPerGrid, threadsPerBlock>>>(d_temp, d_temp_next, d_thermal_deffusivity, dt);
+        time_step<<<blocksPerGrid, threadsPerBlock>>>(d_temp, d_temp_next, d_thermal_deffusivity, dt, M, N);
 
         // boundary_condition();
 
@@ -136,14 +136,14 @@ main ( int argc, char **argv )
 //         where one thread is responsible for one grid point.
 __global__
 void
-time_step (real_t* d_temp, real_t* d_temp_next, real_t* d_thermal_deffusivity, real_t dt)
+time_step (real_t* d_temp, real_t* d_temp_next, real_t* d_thermal_deffusivity, real_t dt, int_t M, int_t N)
 {
     real_t c, t, b, l, r, K, new_value;
 
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
 
-    boundary_condition(x, y);
+    boundary_condition(d_temp, d_temp_next, x, y, M, N);
 
     c = T_device(x, y);
 
@@ -166,14 +166,14 @@ time_step (real_t* d_temp, real_t* d_temp_next, real_t* d_thermal_deffusivity, r
 //         Chose appropriate threads to set the boundary values.
 __device__
 void
-boundary_condition (int x, int y)
+boundary_condition (real_t *d_temp, real_t *d_temp_next, int x, int y, int_t M, int_t N)
 {
     
-    T_device(x, 0) = T(x, 2);
-    T_device(x, M+1) = T(x, M-1);
+    T_device(x, 0) = T_device(x, 2);
+    T_device(x, M+1) = T_device(x, M-1);
 
-    T_device(0, y) = T(2, y);
-    T_device(N+1, y) = T(N-1, y);
+    T_device(0, y) = T_device(2, y);
+    T_device(N+1, y) = T_device(N-1, y);
 }
 
 
