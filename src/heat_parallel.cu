@@ -84,11 +84,10 @@ main ( int argc, char **argv )
     gettimeofday ( &t_start, NULL );
 
     cudaDeviceProp prop;
-    int maxBlocksPerGrid;
     int maxThreadsPerBlock;
     cudaGetDeviceProperties(&prop, 0);
     maxThreadsPerBlock = prop.maxThreadsPerBlock;
-    maxBlocksPerGrid = prop.maxGridSize[0];
+
 
     for ( int_t iteration = 0; iteration <= max_iteration; iteration++ )
     {
@@ -111,7 +110,6 @@ main ( int argc, char **argv )
             );
 
             // TODO 8: Copy data from device to host.
-            cudaMemcpy(h_temp[0], d_temp, size, cudaMemcpyDeviceToHost);
             domain_save ( iteration );
         }
 
@@ -157,7 +155,6 @@ time_step (real_t* d_temp, real_t* d_temp_next, real_t* d_thermal_deffusivity, r
 
     T_device_next(x, y) = new_value;
 
-
 }
 
 
@@ -168,12 +165,21 @@ __device__
 void
 boundary_condition (real_t *d_temp, real_t *d_temp_next, int x, int y, int_t M, int_t N)
 {
-    
-    T_device(x, 0) = T_device(x, 2);
-    T_device(x, M+1) = T_device(x, M-1);
+//	if (x==1) {
 
-    T_device(0, y) = T_device(2, y);
-    T_device(N+1, y) = T_device(N-1, y);
+//		T_device(0,y) = T_device(2,y);
+//	}else if (x==N) {
+//		T_device(N+1, y) = T_device(N-1, y);
+//	}else if (y==1) {
+//		T_device(x,0) = T_device(x,2);
+//	}else if (y==M) {
+//		T_device(x, M+1) = T_device(x, M-1);
+//	}
+
+	T_device(x, 0) = T_device(x,2);
+	T_device(x, M+1) = T_device(x, M-1);
+	T_device(0, y) = T_device(2, y);
+	T_device(N+1, y) = T_device(N-1, y);
 }
 
 
@@ -218,6 +224,7 @@ domain_save ( int_t iteration )
     char filename[256];
     memset ( filename, 0, 256*sizeof(char) );
     sprintf ( filename, "data/%.5ld.bin", index );
+    cudaMemcpy(h_temp[0], d_temp, size, cudaMemcpyDeviceToHost);
 
     FILE *out = fopen ( filename, "wb" );
     if ( ! out ) {
