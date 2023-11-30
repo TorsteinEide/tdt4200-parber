@@ -70,3 +70,10 @@ fun reached_barrier(){
 
 reached_barrier()
 ```
+
+## 3 GPGPU programming
+### 3.1 
+POSIX threads are based on cpus, while CUDA threads are based on threads on the GPU giving many more threads than cpu threads. POSIX threads are run often run out-of-order depending on the CPU schduler based on the system considerations, however CUDA threads are run in order with a single instruction on multiple threads, as they are so many that they do not need to run out of order
+
+### 3.2
+    
